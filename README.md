@@ -1,5 +1,7 @@
 # Ciclo de Vida de ML na AWS — Diagrama Interativo
 
+**🔗 Demo ao vivo: [lifecycle-ml-diagram.vercel.app](https://lifecycle-ml-diagram.vercel.app/)**
+
 Aula interativa sobre o ciclo de vida de um modelo de machine learning, baseada no diagrama de arquitetura oficial do [AWS Well-Architected — Machine Learning Lens](https://docs.aws.amazon.com/pt_br/wellarchitected/latest/machine-learning-lens/architecture-diagram.html).
 
 O diagrama da AWS foi recriado como uma interface clicável: cada componente (fases, Feature Stores, Model Registry, Lineage Tracker, loops de feedback) abre um painel explicando o que acontece naquela etapa, como ela se conecta às demais e quais serviços AWS a implementam.
@@ -28,9 +30,9 @@ python -m http.server 8000
 # http://localhost:8000
 ```
 
-## Publicar no GitHub Pages
+## Deploy
 
-Em **Settings → Pages** do repositório, selecione a branch `main` e a pasta `/ (root)`. A página ficará disponível em `https://<seu-usuario>.github.io/<nome-do-repo>/`.
+O projeto está publicado na [Vercel](https://vercel.com): **[lifecycle-ml-diagram.vercel.app](https://lifecycle-ml-diagram.vercel.app/)**. Por ser um site estático de arquivo único, qualquer push na branch `main` atualiza o deploy automaticamente.
 
 ## Estrutura
 
