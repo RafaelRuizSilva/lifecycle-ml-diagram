@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ciclo de Vida de ML na AWS — Diagrama Interativo</title>
+<style>
+  :root{
+    --ink:#16191F; --muted:#5F6B7A; --bg:#F2F4F7; --card:#FFFFFF;
+    --line:#D5DBE3; --aws:#ED7100; --blue:#0972D3;
+    --c-orange:#ED7100; --c-indigo:#453FA5; --c-wine:#A22B60; --c-teal:#00A895;
+    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"Cascadia Code",Consolas,ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.6}
+
+  header{max-width:1240px;margin:0 auto;padding:30px 20px 6px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--aws);margin:0 0 6px;font-weight:600}
+  h1{font-size:clamp(22px,3.4vw,32px);margin:0 0 8px;font-weight:700;line-height:1.2;text-wrap:balance}
+  .lede{color:var(--muted);max-width:70ch;margin:0 0 14px}
+  .lede strong{color:var(--ink)}
+  .start-btn{
+    display:inline-flex;align-items:center;gap:9px;
+    background:var(--aws);color:#fff;border:none;border-radius:8px;
+    font-family:var(--sans);font-size:15px;font-weight:600;
+    padding:11px 20px;cursor:pointer;box-shadow:0 2px 6px rgba(237,113,0,.35);
+  }
+  .start-btn:hover{background:#D96600}
+  .start-btn svg{width:14px;height:14px;fill:#fff}
+
+  section.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+  .section-label{
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin:22px 0 8px;font-weight:600;
+  }
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;overflow-x:auto}
+  .card svg{display:block;width:100%;height:auto}
+  #stripCard svg{min-width:860px}
+  #diagramCard svg{min-width:1050px}
+
+  /* svg interactivity */
+  svg .hot{cursor:pointer}
+  svg .hot .halo{fill:none;stroke:var(--blue);stroke-width:3;opacity:0;rx:8}
+  svg .hot:hover .halo{opacity:.55}
+  svg .hot.active .halo{opacity:1}
+  svg .hot:focus{outline:none}
+  svg .hot:focus-visible .halo{opacity:1;stroke-dasharray:5 4}
+  svg.focused .hot:not(.active){opacity:.38}
+  svg.focused .conn{opacity:.13}
+  svg.focused .conn.lit{opacity:1}
+  svg .conn,svg .hot{transition:opacity .25s ease}
+  svg text{font-family:var(--sans)}
+  svg .seg-label{font-size:13px;font-weight:600;pointer-events:none}
+  svg .flow-label{font-size:13.5px;font-weight:700}
+  svg .box-label{font-weight:700;pointer-events:none}
+  svg .loop-label{font-size:13.5px;font-weight:600;fill:#6B7280}
+
+  .hint{font-size:13px;color:var(--muted);margin:8px 2px 0;display:flex;align-items:center;gap:8px}
+  .hint .pill{
+    font-family:var(--mono);font-size:10.5px;background:#E8EDF3;border:1px solid var(--line);
+    border-radius:5px;padding:2px 7px;color:var(--ink);
+  }
+
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:26px;height:0;border-top:3px solid var(--sc,#16191F);display:inline-block}
+  .sw.dash{border-top-style:dashed}
+
+  /* ---------- drawer ---------- */
+  #drawer{
+    position:fixed;top:0;right:0;height:100dvh;width:min(470px,100vw);
+    background:#fff;border-left:1px solid var(--line);
+    box-shadow:-12px 0 34px rgba(22,25,31,.18);
+    transform:translateX(105%);transition:transform .3s ease;
+    display:flex;flex-direction:column;z-index:50;
+  }
+  #drawer.open{transform:translateX(0)}
+  @media (prefers-reduced-motion:reduce){#drawer{transition:none}}
+  .d-head{
+    padding:20px 22px 16px;border-bottom:1px solid var(--line);
+    border-top:5px solid var(--dc,var(--aws));position:relative;
+  }
+  .d-phase{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin:0 0 5px;color:var(--dc,var(--aws))}
+  .d-title{font-size:21px;font-weight:700;margin:0;line-height:1.25;padding-right:36px}
+  .d-close{
+    position:absolute;top:14px;right:14px;width:32px;height:32px;
+    border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;
+    font-size:16px;color:var(--muted);line-height:1;
+  }
+  .d-close:hover{color:var(--ink);border-color:#9AA5B1}
+  .d-body{flex:1;overflow-y:auto;padding:18px 22px 24px}
+  .d-body p{margin:0 0 12px;max-width:62ch}
+  .d-body h4{
+    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin:22px 0 10px;font-weight:700;
+    display:flex;align-items:center;gap:9px;
+  }
+  .d-body h4::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .flow-item{
+    display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px;color:#3A4553;
+  }
+  .flow-item .fl{
+    width:30px;flex-shrink:0;height:0;margin-top:9px;
+    border-top:3px solid var(--fc,#16191F);
+  }
+  .flow-item .fl.dash{border-top-style:dashed}
+  .flow-item strong{color:var(--ink)}
+
+  .svc-card{
+    display:flex;gap:12px;align-items:flex-start;
+    border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;
+    background:#FCFDFE;
+  }
+  .svc-card strong{font-size:14.5px;display:block;margin-bottom:2px}
+  .svc-card p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.5}
+  .badge{
+    width:42px;height:42px;border-radius:9px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .badge svg{width:25px;height:25px;stroke:#fff;fill:none;color:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .badge.ml{background:linear-gradient(135deg,#055F4E,#43B893)}
+  .badge.analytics{background:linear-gradient(135deg,#5A22C9,#A166FF)}
+  .badge.storage{background:linear-gradient(135deg,#2E7D1F,#7ED348)}
+  .badge.integration{background:linear-gradient(135deg,#B0084D,#FF4F8B)}
+  .badge.compute{background:linear-gradient(135deg,#C8511B,#FFA23E)}
+  .badge.devtools{background:linear-gradient(135deg,#1D4ED8,#60A5FA)}
+
+  .d-tip{
+    border-left:4px solid var(--dc,var(--aws));background:#F6F8FA;
+    border-radius:0 8px 8px 0;padding:11px 14px;margin-top:18px;font-size:14px;color:#3A4553;
+  }
+  .d-tip .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--dc,var(--aws));display:block;margin-bottom:3px}
+
+  .d-foot{
+    border-top:1px solid var(--line);padding:12px 22px;
+    display:flex;align-items:center;gap:10px;background:#FAFBFC;
+  }
+  .d-foot .pos{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .d-foot button{
+    flex:1;font-family:var(--sans);font-size:13.5px;font-weight:600;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:8px;padding:9px 10px;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .d-foot button:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+  .d-foot button:disabled{opacity:.4;cursor:default}
+
+  /* quiz */
+  .quiz-wrap{max-width:1240px;margin:26px auto 40px;padding:0 20px}
+  .quiz-wrap details{background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .quiz-wrap summary{
+    cursor:pointer;padding:16px 20px;font-weight:700;font-size:16px;list-style:none;
+    display:flex;align-items:center;gap:10px;
+  }
+  .quiz-wrap summary::-webkit-details-marker{display:none}
+  .quiz-wrap summary .chev{transition:transform .2s;color:var(--muted)}
+  .quiz-wrap details[open] summary .chev{transform:rotate(90deg)}
+  .quiz-inner{padding:0 20px 20px}
+  .quiz-q{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:12px;background:#FCFDFE}
+  .quiz-q .qn{font-family:var(--mono);font-size:10.5px;color:var(--aws);letter-spacing:.1em;font-weight:700}
+  .quiz-q .qt{font-weight:600;margin:5px 0 12px}
+  .quiz-q .opts{display:grid;gap:7px}
+  .quiz-q button.opt{
+    text-align:left;font-family:var(--sans);font-size:14px;background:#fff;color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;line-height:1.45;
+  }
+  .quiz-q button.opt:hover:not(:disabled){border-color:var(--blue)}
+  .quiz-q button.opt:disabled{cursor:default;opacity:.55}
+  .quiz-q button.opt.correct{border-color:#1E8A3C;background:#EDF8EE;color:#14532D;opacity:1}
+  .quiz-q button.opt.wrong{border-color:#B4232C;background:#FDF0F1;color:#7F1D1D;opacity:1}
+  .quiz-q .explain{display:none;margin-top:11px;padding:10px 13px;border-radius:8px;background:#F6F8FA;border-left:3px solid var(--aws);font-size:13.5px;color:#3A4553}
+  .quiz-q .explain.show{display:block}
+  .quiz-score{text-align:center;padding:20px;border:1px dashed var(--line);border-radius:10px;margin-top:14px}
+  .quiz-score .big{font-size:30px;font-weight:700;color:var(--aws)}
+  .quiz-score p{margin:4px 0 0;color:var(--muted)}
+
+  footer{max-width:1240px;margin:0 auto 40px;padding:0 20px;color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- glyph library (AWS-style white glyphs) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-node" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="4.5" cy="6" r="2"/><circle cx="19.5" cy="6" r="2"/><circle cx="12" cy="21" r="2"/><path d="M6.2 7.2 9.8 10.2M17.8 7.2 14.2 10.2M12 15.2V19"/></symbol>
+    <symbol id="g-bucket" viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Z"/><path d="M4 6l2.2 13.2c.2 1 2.6 1.8 5.8 1.8s5.6-.8 5.8-1.8L20 6"/></symbol>
+    <symbol id="g-funnel" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V20l-4 1.5V12.5L3 4Z"/></symbol>
+    <symbol id="g-magnify" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5 21 21M7.5 9h5M7.5 12h3.5"/></symbol>
+    <symbol id="g-waves" viewBox="0 0 24 24"><path d="M2 7c3-2.5 5-2.5 8 0s5 2.5 8 0M2 12.5c3-2.5 5-2.5 8 0s5 2.5 8 0M2 18c3-2.5 5-2.5 8 0s5 2.5 8 0"/></symbol>
+    <symbol id="g-tag" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11V3Z"/><circle cx="8" cy="8" r="1.6"/></symbol>
+    <symbol id="g-sliders" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2.2" fill="currentColor"/><circle cx="16" cy="12" r="2.2" fill="currentColor"/><circle cx="7" cy="18" r="2.2" fill="currentColor"/></symbol>
+    <symbol id="g-scale" viewBox="0 0 24 24"><path d="M12 3v18M5 6h14M8 21h8"/><path d="M5 6l-2.8 7a3.2 3.2 0 0 0 5.6 0L5 6ZM19 6l-2.8 7a3.2 3.2 0 0 0 5.6 0L19 6Z"/></symbol>
+    <symbol id="g-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="10" y="10" width="4" height="4"/><path d="M9 6V3M15 6V3M9 21v-3M15 21v-3M6 9H3M6 15H3M21 9h-3M21 15h-3"/></symbol>
+    <symbol id="g-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M7.5 15.5h9"/></symbol>
+    <symbol id="g-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5M3 18l9 5 9-5" opacity=".7"/></symbol>
+    <symbol id="g-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></symbol>
+    <symbol id="g-pipe" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.4"/><circle cx="12" cy="5" r="2.4"/><circle cx="12" cy="19" r="2.4"/><circle cx="19" cy="12" r="2.4"/><path d="M7 10.5 10 6.8M7 13.5 10 17.2M14 6.8l3 3.7M14 17.2l3-3.7"/></symbol>
+    <symbol id="g-pulse" viewBox="0 0 24 24"><path d="M2 12h4.5L9.5 5l4.5 14 3-7H21"/></symbol>
+    <symbol id="g-bell" viewBox="0 0 24 24"><path d="M6 17V10a6 6 0 0 1 12 0v7l2 2H4l2-2Z"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="g-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6.5V12l4 2.5"/></symbol>
+    <symbol id="g-box" viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M3 7l9 5 9-5M12 12v10"/></symbol>
+    <symbol id="g-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2.4"/><circle cx="6" cy="19" r="2.4"/><circle cx="18" cy="8" r="2.4"/><path d="M6 7.5v9M18 10.5c0 4-4 4.5-8 5"/></symbol>
+    <symbol id="g-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="g-spark" viewBox="0 0 24 24"><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4L12 2Z"/><path d="M19 16l.9 2.6L22.5 19l-2.6.9L19 22.5l-.9-2.6L15.5 19l2.6-.9L19 16Z"/></symbol>
+    <symbol id="g-grid" viewBox="0 0 24 24"><path d="M3 21h18M6 21V12M11 21V6M16 21V9M21 21V4"/></symbol>
+    <symbol id="g-lambda" viewBox="0 0 24 24"><path d="M5 4h4l7 16h4M12.8 11.5 7 20H3"/></symbol>
+  </defs>
+</svg>
+
+<header>
+  <p class="eyebrow">AWS Well-Architected · Machine Learning Lens</p>
+  <h1>O ciclo de vida de um modelo de ML — diagrama interativo</h1>
+  <p class="lede">Esta é a arquitetura oficial do <strong>ML Lens da AWS</strong>, recriada de forma interativa. <strong>Clique em qualquer caixa, cilindro ou componente</strong> para ver o que acontece naquela etapa, como ela se conecta às outras e quais serviços AWS a implementam — ou siga a aula na ordem certa:</p>
+  <button class="start-btn" id="startBtn"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5L3 1.5Z"/></svg>Começar a aula passo a passo</button>
+</header>
+
+<section class="wrap">
+  <p class="section-label">O ciclo completo em 8 etapas — clique em uma etapa</p>
+  <div class="card" id="stripCard"></div>
+
+  <p class="section-label" style="margin-top:26px">Arquitetura detalhada — clique em qualquer componente</p>
+  <div class="card" id="diagramCard">
+    <svg id="mainSvg" viewBox="0 0 1360 925" role="group" aria-label="Diagrama de arquitetura do ciclo de vida de ML">
+      <defs>
+        <marker id="mk" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#16191F"/></marker>
+        <marker id="mkO" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ED7100"/></marker>
+        <marker id="mkP" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#E62E8B"/></marker>
+        <marker id="mkB" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#4FB7DD"/></marker>
+        <marker id="mkI" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#453FA5"/></marker>
+        <marker id="mkG" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3FAF63"/></marker>
+        <symbol id="i-stack" viewBox="0 0 44 44"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="3" y="14" width="22" height="22" rx="3" fill="var(--stackbg,transparent)"/><rect x="11" y="8" width="22" height="22" rx="3" fill="var(--stackbg,transparent)"/><rect x="19" y="2" width="22" height="22" rx="3" fill="var(--stackbg,transparent)"/></g></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></symbol>
+        <symbol id="i-person" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="3.5"/><path d="M4.5 21c1-4.5 4-6.5 7.5-6.5s6.5 2 7.5 6.5"/></g></symbol>
+        <symbol id="i-laptop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2 19h20l-2-3H4l-2 3Z"/></g></symbol>
+        <symbol id="i-bars" viewBox="0 0 44 44"><g fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 38h32M11 38V24M20 38V14M29 38V20M38 38V10"/></g></symbol>
+      </defs>
+
+      <!-- ======== banner de fases (chevrons) ======== -->
+      <g aria-hidden="true">
+        <polygon points="8,8 574,8 590,32 574,56 8,56" fill="#ED7100"/>
+        <text x="292" y="40" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">Processar Dados</text>
+        <polygon points="580,8 846,8 862,32 846,56 580,56 596,32" fill="#453FA5"/>
+        <text x="722" y="40" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">Desenvolver Modelo</text>
+        <polygon points="852,8 1096,8 1112,32 1096,56 852,56 868,32" fill="#A22B60"/>
+        <text x="983" y="40" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">Implantar</text>
+        <polygon points="1102,8 1336,8 1352,32 1336,56 1102,56 1118,32" fill="#00A895"/>
+        <text x="1228" y="40" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">Monitorar</text>
+      </g>
+
+      <!-- frame -->
+      <rect x="8" y="64" width="1344" height="853" fill="#fff" stroke="#16191F" stroke-width="2" rx="2"/>
+
+      <!-- ======== conexões tracejadas ======== -->
+      <!-- laranja: grava features -->
+      <g id="fA" class="conn">
+        <path d="M300 456 L300 165 L598 165" fill="none" stroke="#ED7100" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkO)"/>
+        <text class="flow-label" x="450" y="152" text-anchor="middle" fill="#0F7C74">Grava features</text>
+      </g>
+      <g id="fB" class="conn">
+        <path d="M322 456 L322 268 L820 268" fill="none" stroke="#ED7100" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkO)"/>
+        <text class="flow-label" x="560" y="255" text-anchor="middle" fill="#0F7C74">Grava features</text>
+      </g>
+      <g id="fC" class="conn">
+        <path d="M300 628 L300 868 L936 868" fill="none" stroke="#ED7100" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkO)"/>
+      </g>
+      <!-- rosa: online store -->
+      <g id="fD" class="conn">
+        <path d="M707 150 L1040 150 L1040 466" fill="none" stroke="#E62E8B" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkP)"/>
+        <text class="flow-label" x="872" y="138" text-anchor="middle" fill="#453FA5">Busca features</text>
+        <text class="flow-label" x="1052" y="428" text-anchor="start" fill="#453FA5">Inferência em</text>
+        <text class="flow-label" x="1052" y="446" text-anchor="start" fill="#453FA5">tempo real</text>
+      </g>
+      <g id="fE" class="conn">
+        <path d="M707 180 L880 180 L880 221" fill="none" stroke="#E62E8B" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkP)"/>
+        <text class="flow-label" x="796" y="168" text-anchor="middle" fill="#453FA5">Copia p/ offline</text>
+      </g>
+      <!-- azul claro: offline store -->
+      <g id="fF" class="conn">
+        <path d="M850 336 L850 362 L782 362 L782 466" fill="none" stroke="#4FB7DD" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkB)"/>
+        <text class="flow-label" x="770" y="428" text-anchor="end" fill="#453FA5">Busca</text>
+        <text class="flow-label" x="770" y="446" text-anchor="end" fill="#453FA5">features</text>
+      </g>
+      <g id="fG" class="conn">
+        <path d="M908 336 L908 358 L1002 358 L1002 466" fill="none" stroke="#4FB7DD" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkB)"/>
+        <text class="flow-label" x="990" y="428" text-anchor="end" fill="#453FA5">Inferência</text>
+        <text class="flow-label" x="990" y="446" text-anchor="end" fill="#453FA5">em lote</text>
+      </g>
+      <!-- índigo: treino -> registry -->
+      <g id="fH" class="conn">
+        <path d="M750 610 L750 854 L936 854" fill="none" stroke="#453FA5" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkI)"/>
+        <text class="flow-label" x="618" y="895" text-anchor="middle" fill="#0F7C74">Grava artefatos (dados, código, modelo)</text>
+      </g>
+      <!-- verde: registry -> deploy -->
+      <g id="fI" class="conn">
+        <path d="M1000 764 L1000 616" fill="none" stroke="#3FAF63" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#mkG)"/>
+        <text class="flow-label" x="1014" y="698" text-anchor="start" fill="#453FA5">Busca artefatos</text>
+      </g>
+
+      <!-- ======== loops de feedback (sólidos) ======== -->
+      <g id="lp1" class="conn">
+        <path d="M1196 730 L1162 730 L1162 755 L340 755 L340 636" fill="none" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/>
+        <text class="loop-label" x="545" y="744" text-anchor="middle">Loop de feedback de performance</text>
+        <text class="loop-label" x="968" y="744" text-anchor="middle">Loop de drift / active learning</text>
+      </g>
+      <g id="lp2" class="conn">
+        <path d="M772 618 L772 747" fill="none" stroke="#16191F" stroke-width="2.5" marker-start="url(#mk)" marker-end="url(#mk)"/>
+      </g>
+
+      <!-- ======== setas principais (sólidas) ======== -->
+      <g id="m1" class="conn"><line x1="200" y1="552" x2="230" y2="552" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+      <g id="m2" class="conn"><line x1="388" y1="552" x2="400" y2="552" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+      <g id="m3" class="conn"><line x1="592" y1="540" x2="682" y2="540" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+      <g id="m4" class="conn"><line x1="842" y1="540" x2="922" y2="540" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+      <g id="m5" class="conn"><line x1="1084" y1="508" x2="1162" y2="484" stroke="#16191F" stroke-width="2.5" marker-start="url(#mk)" marker-end="url(#mk)"/></g>
+      <g id="m6" class="conn"><line x1="1084" y1="572" x2="1162" y2="596" stroke="#16191F" stroke-width="2.5" marker-start="url(#mk)" marker-end="url(#mk)"/></g>
+      <g id="m7" class="conn"><line x1="1248" y1="654" x2="1248" y2="684" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+      <g id="m8" class="conn"><line x1="1228" y1="774" x2="1228" y2="804" stroke="#16191F" stroke-width="2.5" marker-end="url(#mk)"/></g>
+
+      <!-- ======== container Processar Dados ======== -->
+      <rect x="30" y="440" width="562" height="200" rx="6" fill="#ED7100"/>
+      <text x="46" y="470" font-size="20" font-weight="700" fill="#16191F">Processar Dados</text>
+
+      <!-- Collect -->
+      <g class="hot" data-id="collect" tabindex="0" role="button" aria-label="Coletar dados">
+        <rect class="halo" x="44" y="478" width="158" height="148" rx="7"/>
+        <rect x="48" y="482" width="150" height="140" rx="4" fill="#A8DCCC" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="56" y="488" width="15" height="15" color="#16191F"/>
+        <use href="#i-stack" x="101" y="496" width="44" height="44" color="#16191F" style="--stackbg:#A8DCCC"/>
+        <text class="box-label" x="123" y="577" text-anchor="middle" font-size="16.5" fill="#16191F">Coletar</text>
+        <text class="box-label" x="123" y="598" text-anchor="middle" font-size="16.5" fill="#16191F">dados</text>
+      </g>
+
+      <!-- Prepare container -->
+      <rect x="222" y="456" width="352" height="172" rx="5" fill="#F2E51F"/>
+      <text x="398" y="479" text-anchor="middle" font-size="17" font-weight="700" fill="#16191F">Preparar Dados</text>
+
+      <g class="hot" data-id="preprocess" tabindex="0" role="button" aria-label="Pré-processar dados">
+        <rect class="halo" x="232" y="486" width="158" height="132" rx="7"/>
+        <rect x="236" y="490" width="150" height="124" rx="4" fill="#9BD73B" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="243" y="495" width="14" height="14" color="#16191F"/>
+        <use href="#i-stack" x="291" y="499" width="38" height="38" color="#16191F" style="--stackbg:#9BD73B"/>
+        <text class="box-label" x="311" y="572" text-anchor="middle" font-size="15.5" fill="#16191F">Pré-processar</text>
+        <text class="box-label" x="311" y="592" text-anchor="middle" font-size="15.5" fill="#16191F">dados</text>
+      </g>
+
+      <g class="hot" data-id="engineer" tabindex="0" role="button" aria-label="Engenharia de features">
+        <rect class="halo" x="402" y="486" width="158" height="132" rx="7"/>
+        <rect x="406" y="490" width="150" height="124" rx="4" fill="#1E8A3C" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="413" y="495" width="14" height="14" color="#fff"/>
+        <use href="#i-stack" x="461" y="499" width="38" height="38" color="#fff" style="--stackbg:#1E8A3C"/>
+        <text class="box-label" x="481" y="572" text-anchor="middle" font-size="15.5" fill="#fff">Criar</text>
+        <text class="box-label" x="481" y="592" text-anchor="middle" font-size="15.5" fill="#fff">features</text>
+      </g>
+
+      <!-- Train -->
+      <g class="hot" data-id="train" tabindex="0" role="button" aria-label="Treinar, ajustar e avaliar">
+        <rect class="halo" x="686" y="466" width="158" height="148" rx="7"/>
+        <rect x="690" y="470" width="150" height="140" rx="4" fill="#453FA5" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="698" y="476" width="15" height="15" color="#fff"/>
+        <use href="#i-stack" x="743" y="484" width="44" height="44" color="#fff" style="--stackbg:#453FA5"/>
+        <text class="box-label" x="765" y="565" text-anchor="middle" font-size="16" fill="#fff">Treinar, Ajustar</text>
+        <text class="box-label" x="765" y="586" text-anchor="middle" font-size="16" fill="#fff">Avaliar</text>
+      </g>
+
+      <!-- Deploy -->
+      <g class="hot" data-id="deploy" tabindex="0" role="button" aria-label="Implantar">
+        <rect class="halo" x="926" y="466" width="158" height="148" rx="7"/>
+        <rect x="930" y="470" width="150" height="140" rx="4" fill="#A22B60" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="938" y="476" width="15" height="15" color="#fff"/>
+        <use href="#i-stack" x="983" y="484" width="44" height="44" color="#fff" style="--stackbg:#A22B60"/>
+        <text class="box-label" x="1005" y="572" text-anchor="middle" font-size="17" fill="#fff">Implantar</text>
+        <text class="box-label" x="1005" y="592" text-anchor="middle" font-size="13.5" fill="#F3CBDC">(deploy)</text>
+      </g>
+
+      <!-- Application -->
+      <g class="hot" data-id="application" tabindex="0" role="button" aria-label="Aplicação">
+        <rect class="halo" x="1166" y="426" width="168" height="108" rx="7"/>
+        <rect x="1170" y="430" width="160" height="100" rx="4" fill="#232F3E" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="1177" y="436" width="14" height="14" color="#fff"/>
+        <use href="#i-person" x="1216" y="442" width="28" height="28" color="#fff"/>
+        <use href="#i-laptop" x="1250" y="442" width="28" height="28" color="#fff"/>
+        <text class="box-label" x="1250" y="512" text-anchor="middle" font-size="16.5" fill="#fff">Aplicação</text>
+      </g>
+
+      <!-- Monitor -->
+      <g class="hot" data-id="monitor" tabindex="0" role="button" aria-label="Monitorar">
+        <rect class="halo" x="1166" y="546" width="168" height="108" rx="7"/>
+        <rect x="1170" y="550" width="160" height="100" rx="4" fill="#00A895" stroke="#16191F" stroke-width="1.5"/>
+        <use href="#i-lock" x="1177" y="556" width="14" height="14" color="#fff"/>
+        <path d="M1204 590 h18 l8-16 12 30 8-14 h18" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <text class="box-label" x="1250" y="632" text-anchor="middle" font-size="16.5" fill="#fff">Monitorar</text>
+      </g>
+
+      <!-- Online Feature Store -->
+      <g class="hot" data-id="onlinefs" tabindex="0" role="button" aria-label="Online Feature Store">
+        <rect class="halo" x="597" y="89" width="116" height="122" rx="10"/>
+        <path d="M603 109 v82 a52 15 0 0 0 104 0 v-82" fill="#F6C7E7" stroke="#16191F" stroke-width="1.8"/>
+        <ellipse cx="655" cy="109" rx="52" ry="15" fill="#F6C7E7" stroke="#16191F" stroke-width="1.8"/>
+        <use href="#i-lock" x="648" y="99" width="13" height="13" color="#16191F"/>
+        <text class="box-label" x="655" y="140" text-anchor="middle" font-size="13.5" fill="#16191F">Online</text>
+        <text class="box-label" x="655" y="158" text-anchor="middle" font-size="13.5" fill="#16191F">Feature</text>
+        <text class="box-label" x="655" y="176" text-anchor="middle" font-size="13.5" fill="#16191F">Store</text>
+      </g>
+
+      <!-- Offline Feature Store -->
+      <g class="hot" data-id="offlinefs" tabindex="0" role="button" aria-label="Offline Feature Store">
+        <rect class="halo" x="822" y="219" width="116" height="122" rx="10"/>
+        <path d="M828 239 v82 a52 15 0 0 0 104 0 v-82" fill="#BFE4F2" stroke="#16191F" stroke-width="1.8"/>
+        <ellipse cx="880" cy="239" rx="52" ry="15" fill="#BFE4F2" stroke="#16191F" stroke-width="1.8"/>
+        <use href="#i-lock" x="873" y="229" width="13" height="13" color="#16191F"/>
+        <text class="box-label" x="880" y="270" text-anchor="middle" font-size="13.5" fill="#16191F">Offline</text>
+        <text class="box-label" x="880" y="288" text-anchor="middle" font-size="13.5" fill="#16191F">Feature</text>
+        <text class="box-label" x="880" y="306" text-anchor="middle" font-size="13.5" fill="#16191F">Store</text>
+      </g>
+
+      <!-- Model Registry -->
+      <g class="hot" data-id="registry" tabindex="0" role="button" aria-label="Model Registry">
+        <rect class="halo" x="942" y="750" width="116" height="122" rx="10"/>
+        <path d="M948 770 v82 a52 15 0 0 0 104 0 v-82" fill="#C9E89B" stroke="#16191F" stroke-width="1.8"/>
+        <ellipse cx="1000" cy="770" rx="52" ry="15" fill="#C9E89B" stroke="#16191F" stroke-width="1.8"/>
+        <use href="#i-lock" x="993" y="760" width="13" height="13" color="#16191F"/>
+        <text class="box-label" x="1000" y="806" text-anchor="middle" font-size="13.5" fill="#16191F">Model</text>
+        <text class="box-label" x="1000" y="824" text-anchor="middle" font-size="13.5" fill="#16191F">Registry</text>
+      </g>
+
+      <!-- Lineage Tracker -->
+      <g class="hot" data-id="lineage" tabindex="0" role="button" aria-label="Lineage Tracker">
+        <rect class="halo" x="1176" y="96" width="138" height="140" rx="10"/>
+        <rect x="1185" y="105" width="120" height="72" rx="6" fill="#fff" stroke="#16191F" stroke-width="2"/>
+        <path d="M1213 128 h44 M1213 128 l10-8 M1213 128 l10 8 M1257 150 h-44 M1257 150 l-10-8 M1257 150 l-10 8" transform="translate(5,2)" fill="none" stroke="#16191F" stroke-width="2.4" stroke-linecap="round"/>
+        <text class="box-label" x="1245" y="205" text-anchor="middle" font-size="15.5" fill="#16191F">Lineage</text>
+        <text class="box-label" x="1245" y="225" text-anchor="middle" font-size="15.5" fill="#16191F">Tracker</text>
+      </g>
+
+      <!-- Alarm Manager -->
+      <g class="hot" data-id="alarm" tabindex="0" role="button" aria-label="Gerenciador de alarmes">
+        <rect class="halo" x="1192" y="688" width="146" height="82" rx="8"/>
+        <use href="#i-bars" x="1200" y="694" width="52" height="52" color="#16191F"/>
+        <circle cx="1252" cy="700" r="7" fill="none" stroke="#16191F" stroke-width="2.4"/>
+        <path d="M1252 707v8" stroke="#16191F" stroke-width="2.4"/>
+        <text class="box-label" x="1264" y="718" font-size="15" fill="#16191F">Alarm</text>
+        <text class="box-label" x="1264" y="737" font-size="15" fill="#16191F">Manager</text>
+      </g>
+
+      <!-- Scheduler -->
+      <g class="hot" data-id="scheduler" tabindex="0" role="button" aria-label="Scheduler">
+        <rect class="halo" x="1192" y="806" width="146" height="76" rx="8"/>
+        <use href="#i-bars" x="1200" y="812" width="52" height="52" color="#16191F"/>
+        <circle cx="1254" cy="820" r="8" fill="none" stroke="#16191F" stroke-width="2.4"/>
+        <path d="M1254 815v5l3.5 2.5" fill="none" stroke="#16191F" stroke-width="2"/>
+        <text class="box-label" x="1268" y="847" font-size="15" fill="#16191F">Scheduler</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="--sc:#16191F"></span> fluxo do processo</span>
+    <span><span class="sw dash" style="--sc:#ED7100"></span> grava features / artefatos</span>
+    <span><span class="sw dash" style="--sc:#E62E8B"></span> features online (tempo real)</span>
+    <span><span class="sw dash" style="--sc:#4FB7DD"></span> features offline (treino / lote)</span>
+    <span><span class="sw dash" style="--sc:#453FA5"></span> artefatos p/ registry</span>
+    <span><span class="sw dash" style="--sc:#3FAF63"></span> artefatos p/ deploy</span>
+  </div>
+  <p class="hint"><span class="pill">clique</span> em um componente para abrir a explicação — as conexões dele ficam destacadas no diagrama <span class="pill">←</span><span class="pill">→</span> navegam entre as etapas</p>
+</section>
+
+<div class="quiz-wrap">
+  <details id="quizDetails">
+    <summary><span class="chev">›</span>Quiz — teste o que aprendeu (8 perguntas)</summary>
+    <div class="quiz-inner" id="quizInner"></div>
+  </details>
+</div>
+
+<footer>
+  Baseado no diagrama oficial do <a href="https://docs.aws.amazon.com/pt_br/wellarchitected/latest/machine-learning-lens/architecture-diagram.html" target="_blank" rel="noopener">AWS Well-Architected — Machine Learning Lens</a>. Ícones inspirados no estilo dos AWS Architecture Icons.
+</footer>
+
+<!-- ======== drawer ======== -->
+<aside id="drawer" aria-label="Detalhes da etapa">
+  <div class="d-head" id="dHead">
+    <p class="d-phase" id="dPhase"></p>
+    <h2 class="d-title" id="dTitle"></h2>
+    <button class="d-close" id="dClose" aria-label="Fechar painel">✕</button>
+  </div>
+  <div class="d-body" id="dBody"></div>
+  <div class="d-foot">
+    <button id="dPrev"></button>
+    <span class="pos" id="dPos"></span>
+    <button id="dNext"></button>
+  </div>
+</aside>
+
+<script>
+/* ============ dados das etapas ============ */
+/* service: [nome, categoria(cor), glifo, descrição] */
+const NODES = {
+
+identify:{
+  name:"Identificar o objetivo de negócio", phase:"Fase 0 · Antes do diagrama", color:"#4A97B0",
+  what:[
+    "Tudo começa fora da tecnologia: qual resultado de negócio queremos mover? Reduzir churn, detectar fraude, prever demanda. Nesta etapa define-se a métrica de negócio, a meta e o prazo.",
+    "Também se estabelece a linha de base: como o problema é resolvido hoje (regra manual, planilha, intuição)? O futuro modelo só terá valor se superar essa baseline."
+  ],
+  flows:[
+    ["out","solid","#16191F","Alimenta o <strong>enquadramento do problema de ML</strong> com a meta e a métrica de sucesso."]
+  ],
+  services:[
+    ["Amazon QuickSight","analytics","g-grid","BI para explorar os dados atuais e quantificar a baseline que o modelo precisará superar."],
+    ["Amazon Athena","analytics","g-magnify","SQL serverless direto no data lake para validar se os dados necessários existem e têm qualidade."],
+    ["Serviços de IA prontos (Rekognition, Comprehend, Forecast…)","ml","g-spark","Antes de construir: verifique se um serviço gerenciado já resolve o problema sem treinar nada."]
+  ],
+  tip:"Escreva o critério de sucesso em métrica de negócio (“reduzir churn em 5%”), não só em métrica de modelo (“AUC 0,85”)."
+},
+
+frame:{
+  name:"Enquadrar o problema de ML", phase:"Fase 0 · Antes do diagrama", color:"#155E75",
+  what:[
+    "Aqui o objetivo de negócio vira um problema técnico bem definido: o que exatamente o modelo vai prever (variável-alvo), com quais entradas, e que tipo de problema é — classificação, regressão, ranking, previsão de série temporal.",
+    "É também o momento de decidir se ML é mesmo a ferramenta certa: existe padrão nos dados? Há volume suficiente? Uma regra simples não resolveria mais barato?"
+  ],
+  flows:[
+    ["in","solid","#16191F","Recebe o <strong>objetivo e a métrica de negócio</strong> da etapa anterior."],
+    ["out","solid","#16191F","Dispara a <strong>coleta de dados</strong> — primeira caixa do diagrama."]
+  ],
+  services:[
+    ["SageMaker Canvas","ml","g-node","AutoML sem código: valide em dias se os dados têm sinal preditivo, antes de montar um pipeline completo."],
+    ["SageMaker Autopilot","ml","g-node","AutoML programático que testa algoritmos e gera notebooks inspecionáveis — ótimo para prova de viabilidade."],
+    ["Amazon Bedrock","ml","g-spark","Se o problema envolve linguagem ou geração, um modelo de fundação com bom prompt pode substituir meses de treino."]
+  ],
+  tip:"Se um serviço de IA pronto ou um modelo de fundação resolve, pare aqui — a melhor fase de ML é a que você não precisa construir."
+},
+
+collect:{
+  name:"Coletar dados", phase:"Fase 1 · Processar Dados", color:"#3FA98C",
+  what:[
+    "Primeira caixa do diagrama: reunir os dados brutos de todas as fontes — bancos transacionais, APIs, logs, streams de eventos, arquivos — em um repositório central (o data lake).",
+    "Se o aprendizado é supervisionado e não existem rótulos, é aqui que eles são criados (rotulagem humana ou assistida). O cadeado nas caixas do diagrama lembra: dados criptografados e com acesso controlado desde a origem."
+  ],
+  flows:[
+    ["in","solid","#16191F","Recebe dados brutos das <strong>fontes</strong> (sistemas, streams, arquivos)."],
+    ["out","solid","#16191F","Entrega os dados brutos para o <strong>pré-processamento</strong> (seta preta no diagrama)."]
+  ],
+  services:[
+    ["Amazon S3","storage","g-bucket","O data lake: destino padrão de todo dado bruto e processado do ciclo de ML na AWS."],
+    ["Amazon Kinesis / MSK","analytics","g-waves","Ingestão de eventos em tempo real — cliques, sensores, transações — para features sempre frescas."],
+    ["AWS Glue","analytics","g-funnel","ETL serverless para trazer dados de bancos e sistemas, com catálogo central de schemas."],
+    ["SageMaker Ground Truth","ml","g-tag","Fluxos de rotulagem com força de trabalho humana e rotulagem automática assistida por ML."],
+    ["Amazon Athena","analytics","g-magnify","Explorar o que chegou ao lake com SQL, antes de investir em preparação."]
+  ],
+  tip:"Centralize tudo no S3 com o Glue Data Catalog descrevendo os schemas — todos os serviços das próximas etapas leem direto de lá."
+},
+
+preprocess:{
+  name:"Pré-processar dados", phase:"Fase 1 · Processar Dados → Preparar Dados", color:"#6FA82A",
+  what:[
+    "Primeira metade da caixa amarela “Preparar Dados”: limpar o que foi coletado. Tratar valores ausentes, remover duplicatas, corrigir tipos e formatos, anonimizar dados sensíveis e balancear classes.",
+    "Repare no diagrama: os dois loops de feedback (linha preta inferior) apontam de volta para cá. Quando a avaliação decepciona ou o drift aparece em produção, é esta etapa que reprocessa os dados novos."
+  ],
+  flows:[
+    ["in","solid","#16191F","Recebe dados brutos da <strong>coleta</strong>."],
+    ["out","solid","#16191F","Entrega dados limpos para a <strong>engenharia de features</strong>."],
+    ["loop","solid","#6B7280","Destino dos <strong>loops de feedback</strong>: performance (da avaliação) e drift (da produção)."]
+  ],
+  services:[
+    ["SageMaker Data Wrangler","ml","g-sliders","Preparação visual com 300+ transformações prontas; exporta o resultado como código de pipeline."],
+    ["SageMaker Processing","ml","g-chip","Roda seus scripts (Pandas, Spark, scikit-learn) em infraestrutura efêmera: sobe, processa, desliga."],
+    ["AWS Glue DataBrew","analytics","g-funnel","Limpeza e perfilamento de dados sem código, com receitas reutilizáveis."],
+    ["Amazon EMR","analytics","g-waves","Spark gerenciado para volumes em escala de terabytes/petabytes."],
+    ["SageMaker Clarify","ml","g-scale","Detecta desbalanceamento e viés estatístico nos dados antes do treino."]
+  ],
+  tip:"Automatize esta etapa como job repetível desde o dia 1 — os loops de feedback vão executá-la de novo a cada retreino."
+},
+
+engineer:{
+  name:"Criar features (feature engineering)", phase:"Fase 1 · Processar Dados → Preparar Dados", color:"#1E8A3C",
+  what:[
+    "Segunda metade de “Preparar Dados”: transformar dados limpos nos sinais que o modelo realmente aprende — agregações (compras nos últimos 30 dias), razões, janelas temporais, encoding de categorias, normalização.",
+    "Veja as setas laranjas tracejadas saindo desta região no diagrama: as features prontas são gravadas nas Feature Stores (online e offline), e os artefatos de dados são versionados no Model Registry. É isso que permite reutilizar o trabalho em vez de refazê-lo a cada modelo."
+  ],
+  flows:[
+    ["in","solid","#16191F","Recebe dados limpos do <strong>pré-processamento</strong>."],
+    ["out","dash","#ED7100","<strong>Grava features</strong> na Online e na Offline Feature Store (setas laranjas)."],
+    ["out","dash","#ED7100","<strong>Grava artefatos</strong> (dados, código) no Model Registry."],
+    ["out","solid","#16191F","Segue o fluxo principal para <strong>Treinar, Ajustar, Avaliar</strong>."]
+  ],
+  services:[
+    ["SageMaker Feature Store","ml","g-db","Publica cada feature uma única vez, com o mesmo código servindo treino e produção."],
+    ["SageMaker Data Wrangler","ml","g-sliders","Criação visual de features com exportação direta para a Feature Store."],
+    ["SageMaker Processing / Spark","ml","g-chip","Features complexas em código, executadas como jobs reproduzíveis."],
+    ["AWS Glue","analytics","g-funnel","Pipelines ETL recorrentes que mantêm as features atualizadas."]
+  ],
+  tip:"A regra de ouro: a feature usada no treino e a usada na inferência devem sair do mesmo código. A Feature Store existe exatamente para isso."
+},
+
+onlinefs:{
+  name:"Online Feature Store", phase:"Componente transversal", color:"#D9569E",
+  what:[
+    "O cilindro rosa do diagrama. Guarda apenas o valor mais recente de cada feature e o serve em milissegundos — é ele que alimenta a inferência em tempo real.",
+    "Exemplo: no momento do checkout, o endpoint de fraude pergunta “quantas compras este cliente fez na última hora?” e a resposta precisa chegar em menos de 10 ms. Nenhum data lake responde nisso; a loja online sim."
+  ],
+  flows:[
+    ["in","dash","#ED7100","<strong>Recebe features</strong> da preparação de dados (seta laranja)."],
+    ["out","dash","#E62E8B","<strong>Serve features</strong> ao Deploy para inferência em tempo real (seta rosa)."],
+    ["out","dash","#E62E8B","<strong>Copia para a offline</strong> — tudo que passa na online vira histórico (seta rosa)."]
+  ],
+  services:[
+    ["SageMaker Feature Store (online)","ml","g-db","Armazenamento gerenciado de baixíssima latência para leitura no momento da predição."],
+    ["Amazon DynamoDB / ElastiCache","devtools","g-bolt","Alternativas para servir features com latência de milissegundos em arquiteturas próprias."]
+  ],
+  tip:"Online store responde “qual o valor AGORA?”; offline store responde “quais eram os valores em qualquer momento do passado?”."
+},
+
+offlinefs:{
+  name:"Offline Feature Store", phase:"Componente transversal", color:"#4FA3C4",
+  what:[
+    "O cilindro azul claro. Guarda o histórico completo de todas as features ao longo do tempo — é a fonte de dados para treinar modelos e para inferência em lote.",
+    "As setas azuis do diagrama mostram os dois consumidores: o treino busca features históricas para aprender, e o deploy em lote busca features para pontuar grandes volumes de uma vez."
+  ],
+  flows:[
+    ["in","dash","#ED7100","<strong>Recebe features</strong> da preparação de dados (seta laranja)."],
+    ["in","dash","#E62E8B","<strong>Recebe cópia</strong> do que passa pela loja online (seta rosa)."],
+    ["out","dash","#4FB7DD","<strong>Fornece features</strong> para o treinamento (seta azul)."],
+    ["out","dash","#4FB7DD","<strong>Fornece features</strong> para inferência em lote no deploy (seta azul)."]
+  ],
+  services:[
+    ["SageMaker Feature Store (offline)","ml","g-db","Histórico completo no S3, consultável e com time travel: reconstrua o valor de uma feature em qualquer data."],
+    ["Amazon S3","storage","g-bucket","Onde o histórico fisicamente mora — formato aberto, acessível por qualquer ferramenta."],
+    ["Amazon Athena","analytics","g-magnify","SQL sobre o histórico de features para montar datasets de treino."]
+  ],
+  tip:"O time travel da loja offline evita vazamento de dados: treine com os valores que as features tinham NA ÉPOCA do evento, não com os de hoje."
+},
+
+train:{
+  name:"Treinar, Ajustar, Avaliar", phase:"Fase 2 · Desenvolver Modelo", color:"#453FA5",
+  what:[
+    "A caixa roxa: o coração experimental do ciclo. Treinar o modelo com as features históricas, ajustar hiperparâmetros (tuning) para extrair o máximo, e avaliar em dados que o modelo nunca viu.",
+    "Duas saídas importantes no diagrama: se a avaliação aprova, os artefatos vão para o Model Registry (seta índigo). Se reprova, o loop de feedback de performance (linha preta) volta para a preparação de dados — mais dados e melhores features costumam render mais que algoritmos exóticos."
+  ],
+  flows:[
+    ["in","dash","#4FB7DD","<strong>Busca features</strong> históricas da Offline Feature Store (seta azul)."],
+    ["in","solid","#16191F","Recebe o fluxo principal vindo de <strong>Processar Dados</strong>."],
+    ["out","dash","#453FA5","<strong>Grava artefatos</strong> (modelo, métricas, código) no Model Registry (seta índigo)."],
+    ["loop","solid","#6B7280","<strong>Loop de performance</strong>: avaliação ruim → volta para preparar dados (linha preta inferior)."],
+    ["out","solid","#16191F","Modelo aprovado segue para o <strong>Deploy</strong>."]
+  ],
+  services:[
+    ["SageMaker Training Jobs","ml","g-chip","Treino em infraestrutura efêmera (inclusive distribuído e com Spot, até ~90% mais barato)."],
+    ["SageMaker Automatic Model Tuning","ml","g-sliders","Busca bayesiana de hiperparâmetros — dezenas de treinos orquestrados automaticamente."],
+    ["SageMaker Experiments","ml","g-flask","Registra cada execução (parâmetros, métricas, artefatos) para comparar experimentos."],
+    ["SageMaker Debugger","ml","g-magnify","Raio-x do treino: detecta overfitting, gradientes explodindo, GPU ociosa."],
+    ["SageMaker Clarify","ml","g-scale","Explicabilidade (SHAP) e viés pós-treino — critérios de aprovação além da acurácia."],
+    ["SageMaker JumpStart","ml","g-spark","Modelos pré-treinados para fine-tuning: mais barato que treinar do zero."]
+  ],
+  tip:"Comece com um baseline simples (regressão logística, árvore). Complexidade só se justifica quando supera o simples — e o simples às vezes ganha."
+},
+
+registry:{
+  name:"Model Registry", phase:"Componente transversal", color:"#7CA83C",
+  what:[
+    "O cilindro verde na parte de baixo: o controle de versão dos modelos. Cada versão entra com suas métricas de avaliação, referências aos dados e código que a geraram, e um status de aprovação (pendente → aprovado → em produção).",
+    "Repare no fluxo do diagrama: o treino grava artefatos aqui (seta índigo), e o deploy busca artefatos daqui (seta verde). O registry é o portão entre desenvolvimento e produção — nada vai para o ar sem passar por ele."
+  ],
+  flows:[
+    ["in","dash","#453FA5","<strong>Recebe artefatos</strong> do treinamento: modelo, métricas, linhagem (seta índigo)."],
+    ["in","dash","#ED7100","<strong>Recebe artefatos</strong> de dados e código da preparação (seta laranja)."],
+    ["out","dash","#3FAF63","<strong>Fornece o modelo aprovado</strong> para o Deploy (seta verde)."]
+  ],
+  services:[
+    ["SageMaker Model Registry","ml","g-layers","Grupos de modelos com versões, métricas, workflow de aprovação e gatilho automático de deploy."],
+    ["Amazon ECR","compute","g-box","Registry das imagens de contêiner de treino e inferência — parte da linhagem de cada versão."],
+    ["SageMaker Pipelines","ml","g-pipe","O passo de registro entra como etapa condicional do pipeline: só registra se a métrica passar do limiar."]
+  ],
+  tip:"Responda em 10 segundos: “qual versão está em produção, quem aprovou e com que métricas?” Se não consegue, você precisa de um registry."
+},
+
+deploy:{
+  name:"Implantar (Deploy)", phase:"Fase 3 · Implantar", color:"#A22B60",
+  what:[
+    "A caixa vinho: empacotar o modelo aprovado e servi-lo ao mundo real. Antes da produção, o modelo passa por staging para validar segurança, robustez e latência.",
+    "O diagrama mostra as duas formas de servir: inferência em tempo real (features chegando da loja online, seta rosa) e inferência em lote (features da loja offline, seta azul). O modelo em si vem do Model Registry (seta verde “busca artefatos”)."
+  ],
+  flows:[
+    ["in","dash","#3FAF63","<strong>Busca artefatos</strong> do Model Registry — o modelo aprovado (seta verde)."],
+    ["in","dash","#E62E8B","<strong>Features em tempo real</strong> da Online Feature Store (seta rosa)."],
+    ["in","dash","#4FB7DD","<strong>Features em lote</strong> da Offline Feature Store (seta azul)."],
+    ["out","solid","#16191F","Serve predições para a <strong>Aplicação</strong> (seta dupla)."],
+    ["out","solid","#16191F","Envia tráfego e respostas para o <strong>Monitoramento</strong> (seta dupla)."]
+  ],
+  services:[
+    ["SageMaker Endpoints (tempo real)","ml","g-bolt","Endpoint HTTPS gerenciado com auto scaling, variantes A/B e deploy canary/blue-green com rollback automático."],
+    ["SageMaker Batch Transform","ml","g-layers","Pontua um dataset inteiro e desliga tudo — sem custo de endpoint ocioso."],
+    ["SageMaker Serverless / Async Inference","ml","g-bolt","Serverless escala a zero em tráfego intermitente; Async enfileira payloads grandes."],
+    ["SageMaker Pipelines","ml","g-pipe","CI/CD de ML: processar → treinar → avaliar → registrar → implantar, tudo versionado."],
+    ["AWS Lambda + API Gateway","compute","g-lambda","Para modelos leves: inferência serverless com o mínimo de infraestrutura."],
+    ["AWS CloudFormation / CDK","integration","g-layers","Toda a infraestrutura de deploy declarada como código — reproduzível e auditável."]
+  ],
+  tip:"Implante gradualmente (canary/blue-green) comparando o modelo novo com o atual em tráfego real — e mantenha o rollback a um clique."
+},
+
+application:{
+  name:"Aplicação", phase:"Fase 3 · Implantar", color:"#232F3E",
+  what:[
+    "A caixa azul-escura: quem consome as predições — o app, o site, o sistema interno, o time de operação. É onde o ML finalmente vira valor: um pedido bloqueado por fraude, uma recomendação exibida, um estoque ajustado.",
+    "A seta é dupla no diagrama por um motivo importante: a aplicação também devolve dados — o clique do usuário, a fraude confirmada, a venda realizada. Esses resultados reais viram os rótulos do futuro retreino."
+  ],
+  flows:[
+    ["in","solid","#16191F","<strong>Recebe predições</strong> do endpoint de deploy."],
+    ["out","solid","#16191F","<strong>Devolve resultados reais</strong> (cliques, confirmações) que viram novos dados de treino."]
+  ],
+  services:[
+    ["Amazon API Gateway","integration","g-pipe","Porta de entrada gerenciada entre a aplicação e o endpoint de inferência."],
+    ["AWS Lambda","compute","g-lambda","Lógica de negócio em volta da predição: enriquecer a chamada, aplicar regras, formatar resposta."],
+    ["Amazon Kinesis","analytics","g-waves","Captura os eventos de resposta do usuário e os leva de volta ao data lake — fechando o ciclo."]
+  ],
+  tip:"Desenhe desde o início como a aplicação devolve o resultado real de cada predição — sem esses rótulos, o monitoramento de qualidade fica cego."
+},
+
+monitor:{
+  name:"Monitorar", phase:"Fase 4 · Monitorar", color:"#00A895",
+  what:[
+    "A caixa teal: vigiar o modelo em produção. Modelos não lançam exceção quando erram — continuam respondendo, cada vez pior. Isso acontece porque o mundo muda em relação aos dados de treino: é o drift.",
+    "Monitora-se em camadas: o sistema (latência, erros), os dados de entrada (data drift: a distribuição mudou?) e a qualidade do modelo (quando os rótulos reais chegam, a acurácia real caiu?). Detectou problema → Alarm Manager."
+  ],
+  flows:[
+    ["in","solid","#16191F","<strong>Recebe tráfego e predições</strong> do Deploy (seta dupla)."],
+    ["out","solid","#16191F","<strong>Dispara o Alarm Manager</strong> quando um limiar é violado."],
+    ["loop","solid","#6B7280","Origem do <strong>loop de drift / active learning</strong> que reinicia o ciclo pelos dados."]
+  ],
+  services:[
+    ["SageMaker Model Monitor","ml","g-pulse","Captura as requisições do endpoint e compara com a baseline do treino: drift de dados, de qualidade, de viés."],
+    ["SageMaker Clarify (produção)","ml","g-scale","Monitora se o viés entre grupos aumentou e se a importância das features mudou."],
+    ["Amazon CloudWatch","integration","g-pulse","Métricas, logs e alarmes do endpoint — a camada padrão de observabilidade da AWS."]
+  ],
+  tip:"Monitore as ENTRADAS, não só as saídas: o data drift aparece semanas antes da queda de acurácia, porque os rótulos reais demoram a chegar."
+},
+
+alarm:{
+  name:"Alarm Manager", phase:"Fase 4 · Monitorar", color:"#3A4553",
+  what:[
+    "O componente que transforma detecção em ação. Recebe os alertas do monitoramento e publica notificações — para humanos (e-mail, chat) e para máquinas (eventos que disparam automação).",
+    "No diagrama, é dele que sai o loop de drift / active learning: o alarme de degradação viaja pela linha preta inferior de volta até a preparação de dados, reiniciando o ciclo com dados novos."
+  ],
+  flows:[
+    ["in","solid","#16191F","<strong>Recebe alertas</strong> do monitoramento."],
+    ["out","solid","#16191F","<strong>Notifica</strong> times e sistemas; alimenta o Scheduler."],
+    ["loop","solid","#6B7280","Dispara o <strong>loop de drift</strong>: retreino com dados novos (linha preta até Preparar Dados)."]
+  ],
+  services:[
+    ["Amazon CloudWatch Alarms","integration","g-pulse","Define os limiares (drift acima de X, latência acima de Y) que disparam tudo."],
+    ["Amazon SNS","integration","g-bell","Publica a notificação para e-mail, SMS, chat ou outros sistemas."],
+    ["Amazon EventBridge","integration","g-clock","Roteia o alarme como evento para automações — ex.: iniciar o pipeline de retreino sem humano no caminho."]
+  ],
+  tip:"Alarme bom acorda gente E máquina: humano avaliando o caso, pipeline de retreino já preparando a correção."
+},
+
+scheduler:{
+  name:"Scheduler", phase:"Fase 4 · Monitorar", color:"#3A4553",
+  what:[
+    "O relógio do ciclo. Nem toda degradação dispara alarme — algumas são lentas demais para violar limiares. Por isso o retreino também acontece por agenda: semanal, mensal, no ritmo que o negócio muda.",
+    "O Scheduler inicia o pipeline completo em intervalos definidos: reprocessar dados recentes, retreinar, avaliar contra o modelo atual e — só se ganhar — promover a nova versão."
+  ],
+  flows:[
+    ["in","solid","#16191F","Recebe a política de retreino (intervalos definidos pelo negócio) e sinais do <strong>Alarm Manager</strong>."],
+    ["out","solid","#16191F","<strong>Dispara o pipeline de retreino</strong> periodicamente, reiniciando o ciclo."]
+  ],
+  services:[
+    ["Amazon EventBridge Scheduler","integration","g-clock","Agendas cron gerenciadas que iniciam pipelines, jobs e funções."],
+    ["SageMaker Pipelines","ml","g-pipe","O pipeline de retreino ponta a ponta que a agenda dispara."],
+    ["AWS Step Functions","integration","g-pipe","Orquestração de fluxos mais amplos que cruzam vários serviços além do SageMaker."]
+  ],
+  tip:"Retreine por agenda E por alarme: a agenda cobre a degradação lenta, o alarme cobre a mudança brusca."
+},
+
+lineage:{
+  name:"Lineage Tracker", phase:"Componente transversal", color:"#5B6472",
+  what:[
+    "O ícone no canto superior direito observa tudo: para qualquer predição já feita, deve ser possível reconstruir a cadeia completa que a produziu. É o que torna o ML reproduzível e auditável.",
+    "O ML Lens define 4 ingredientes que precisam de versão: a infraestrutura (como código), os dados (schemas e datasets), o código de implementação, e os componentes do modelo (lista de features, algoritmo, imagem de contêiner)."
+  ],
+  flows:[
+    ["in","dash","#6B7280","<strong>Coleta referências</strong> de todas as etapas: dados, código, modelos e infraestrutura."],
+    ["out","dash","#6B7280","<strong>Responde auditorias</strong>: “por que o modelo decidiu isso?” — com a linhagem completa."]
+  ],
+  services:[
+    ["SageMaker ML Lineage Tracking","ml","g-node","Registra automaticamente o grafo dataset → processamento → treino → modelo → endpoint."],
+    ["AWS CloudFormation / CDK","integration","g-layers","Infraestrutura como código versionado — elimina configuration drift entre ambientes."],
+    ["Git (CodeCommit / GitHub)","devtools","g-branch","Versão de todo o código de pipeline, treino e inferência."],
+    ["Amazon ECR","compute","g-box","Histórico de versões das imagens de contêiner usadas em cada treino e deploy."],
+    ["SageMaker Feature Store","ml","g-db","A lista de features de cada modelo, com histórico de versões."]
+  ],
+  tip:"Teste de maturidade: consegue retreinar exatamente o modelo que está em produção, do zero, só com o que está versionado? Se sim, sua linhagem funciona."
+}
+};
+
+/* ordem da aula */
+const ORDER = ["identify","frame","collect","preprocess","engineer","onlinefs","offlinefs","train","registry","deploy","application","monitor","alarm","scheduler","lineage"];
+
+/* conexões destacadas por nó */
+const REL = {
+  identify:[], frame:[],
+  collect:["m1"],
+  preprocess:["m1","m2","lp1","lp2"],
+  engineer:["m2","m3","fA","fB","fC"],
+  onlinefs:["fA","fD","fE"],
+  offlinefs:["fB","fE","fF","fG"],
+  train:["m3","m4","fF","fH","lp1","lp2"],
+  registry:["fC","fH","fI"],
+  deploy:["m4","fD","fG","fI","m5","m6"],
+  application:["m5"],
+  monitor:["m6","m7","lp1"],
+  alarm:["m7","m8","lp1"],
+  scheduler:["m8"],
+  lineage:[]
+};
+
+/* ============ faixa de 8 etapas (chevrons) ============ */
+const STRIP = [
+  ["identify","Objetivo de","negócio","#8FCBDD","#16191F"],
+  ["frame","Enquadrar","problema de ML","#155E75","#fff"],
+  ["collect","Coletar","dados","#A8DCCC","#16191F"],
+  ["preprocess","Pré-processar","dados","#9BD73B","#16191F"],
+  ["engineer","Criar","features","#1E8A3C","#fff"],
+  ["train","Treinar, ajustar","avaliar","#5B50C7","#fff"],
+  ["deploy","Implantar","(deploy)","#A22B60","#fff"],
+  ["monitor","Monitorar","em produção","#00A895","#fff"]
+];
+(function buildStrip(){
+  const W=1160,H=132,segW=141,tip=15,y0=46,y1=90,x0=10;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="As 8 etapas do ciclo">`;
+  /* colchete amarelo: preparar dados (segs 3-4) */
+  const px=x0+3*segW, pw=2*segW;
+  s+=`<polygon points="${px+6},14 ${px+pw-10},14 ${px+pw+4},27 ${px+pw-10},40 ${px+6},40 ${px+20},27" fill="#F2E51F"/>
+      <text x="${px+pw/2}" y="32" text-anchor="middle" font-size="13.5" font-weight="700" fill="#16191F">Preparar Dados</text>`;
+  /* colchete laranja: processar dados (segs 2-4) */
+  const ox=x0+2*segW, ow=3*segW;
+  s+=`<polygon points="${ox+6},96 ${ox+ow-10},96 ${ox+ow+4},109 ${ox+ow-10},122 ${ox+6},122 ${ox+20},109" fill="#ED7100"/>
+      <text x="${ox+ow/2}" y="114" text-anchor="middle" font-size="13.5" font-weight="700" fill="#fff">Processar Dados</text>`;
+  STRIP.forEach((seg,i)=>{
+    const [id,l1,l2,fill,tc]=seg, x=x0+i*segW, midY=(y0+y1)/2;
+    const notch = i===0 ? `${x},${y0}` : `${x},${y0} ${x+tip},${midY}`;
+    const pts=`${x},${y0} ${x+segW-tip},${y0} ${x+segW},${midY} ${x+segW-tip},${y1} ${x},${y1}`+(i===0?"":` ${x+tip},${midY}`);
+    s+=`<g class="hot" data-id="${id}" tabindex="0" role="button" aria-label="${l1} ${l2}">
+      <rect class="halo" x="${x-2}" y="${y0-5}" width="${segW+4}" height="${y1-y0+10}" rx="6"/>
+      <polygon points="${pts}" fill="${fill}"/>
+      <text class="seg-label" x="${x+(i===0?0:tip/2)+segW/2-(i===0?0:tip/2)}" y="${midY-3}" text-anchor="middle" fill="${tc}">${l1}</text>
+      <text class="seg-label" x="${x+(i===0?0:tip/2)+segW/2-(i===0?0:tip/2)}" y="${midY+14}" text-anchor="middle" fill="${tc}">${l2}</text>
+    </g>`;
+  });
+  s+=`</svg>`;
+  document.getElementById("stripCard").innerHTML=s;
+})();
+
+/* ============ drawer ============ */
+const drawer=document.getElementById("drawer");
+const mainSvg=document.getElementById("mainSvg");
+let currentId=null;
+
+function badge(cat,glyph){
+  return `<span class="badge ${cat}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#${glyph}"/></svg></span>`;
+}
+function flowRow(f){
+  const [kind,style,color,text]=f;
+  const verb = kind==="in"?"Recebe":kind==="out"?"Envia":"Loop";
+  return `<div class="flow-item"><span class="fl ${style==="dash"?"dash":""}" style="--fc:${color}"></span><span><strong>${verb}:</strong> ${text}</span></div>`;
+}
+
+function openNode(id, scroll=true){
+  const n=NODES[id]; if(!n) return;
+  currentId=id;
+  drawer.style.setProperty("--dc", n.color);
+  document.getElementById("dHead").style.setProperty("--dc", n.color);
+  document.getElementById("dPhase").textContent=n.phase;
+  document.getElementById("dPhase").style.color=n.color;
+  document.getElementById("dTitle").textContent=n.name;
+
+  let b="";
+  b+=`<h4>O que acontece aqui</h4>`+n.what.map(p=>`<p>${p}</p>`).join("");
+  if(n.flows && n.flows.length){
+    b+=`<h4>Conexões no diagrama</h4>`+n.flows.map(flowRow).join("");
+  }
+  b+=`<h4>Serviços AWS para esta etapa</h4>`+n.services.map(s=>
+    `<div class="svc-card">${badge(s[1],s[2])}<div><strong>${s[0]}</strong><p>${s[3]}</p></div></div>`).join("");
+  b+=`<div class="d-tip"><span class="t">Na prática</span>${n.tip}</div>`;
+  document.getElementById("dBody").innerHTML=b;
+  document.getElementById("dBody").scrollTop=0;
+
+  const idx=ORDER.indexOf(id);
+  document.getElementById("dPos").textContent=`${idx+1} / ${ORDER.length}`;
+  const prev=document.getElementById("dPrev"), next=document.getElementById("dNext");
+  prev.disabled = idx<=0; next.disabled = idx>=ORDER.length-1;
+  prev.textContent = idx>0 ? "‹ "+NODES[ORDER[idx-1]].name : "‹";
+  next.textContent = idx<ORDER.length-1 ? NODES[ORDER[idx+1]].name+" ›" : "›";
+
+  drawer.classList.add("open");
+  highlight(id);
+  if(scroll){
+    const inDiagram = mainSvg.querySelector(`.hot[data-id="${id}"]`);
+    const target = inDiagram ? document.getElementById("diagramCard") : document.getElementById("stripCard");
+    const r=target.getBoundingClientRect();
+    if(r.top<0 || r.bottom>window.innerHeight) target.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+}
+
+function highlight(id){
+  document.querySelectorAll("svg .hot").forEach(h=>h.classList.toggle("active",h.dataset.id===id));
+  const rel=REL[id]||[];
+  const inDiagram = !!mainSvg.querySelector(`.hot[data-id="${id}"]`);
+  mainSvg.classList.toggle("focused", inDiagram && rel.length>0);
+  mainSvg.querySelectorAll(".conn").forEach(c=>c.classList.toggle("lit", rel.includes(c.id)));
+}
+
+function closeDrawer(){
+  drawer.classList.remove("open");
+  currentId=null;
+  mainSvg.classList.remove("focused");
+  document.querySelectorAll("svg .hot").forEach(h=>h.classList.remove("active"));
+}
+
+document.getElementById("dClose").addEventListener("click",closeDrawer);
+document.getElementById("dPrev").addEventListener("click",()=>{const i=ORDER.indexOf(currentId); if(i>0) openNode(ORDER[i-1],false);});
+document.getElementById("dNext").addEventListener("click",()=>{const i=ORDER.indexOf(currentId); if(i<ORDER.length-1) openNode(ORDER[i+1],false);});
+document.getElementById("startBtn").addEventListener("click",()=>openNode(ORDER[0]));
+
+document.addEventListener("click",e=>{
+  const hot=e.target.closest(".hot");
+  if(hot && hot.dataset.id) openNode(hot.dataset.id,false);
+});
+document.addEventListener("keydown",e=>{
+  const hot=e.target.closest?.(".hot");
+  if(hot && (e.key==="Enter"||e.key===" ")){e.preventDefault();openNode(hot.dataset.id,false);return;}
+  if(e.key==="Escape") closeDrawer();
+  if(!currentId) return;
+  if(e.key==="ArrowRight"){const i=ORDER.indexOf(currentId); if(i<ORDER.length-1) openNode(ORDER[i+1],false);}
+  if(e.key==="ArrowLeft"){const i=ORDER.indexOf(currentId); if(i>0) openNode(ORDER[i-1],false);}
+});
+
+/* ============ quiz ============ */
+const QUIZ = [
+  {q:"Qual é a ordem correta das fases do ciclo de vida de ML?",
+   opts:["Dados → Problema → Modelo → Monitorar → Deploy","Problema → Dados → Modelo → Deploy → Monitorar","Modelo → Dados → Problema → Deploy → Monitorar","Problema → Modelo → Dados → Monitorar → Deploy"],
+   a:1, ex:"Primeiro enquadra-se o problema de negócio, depois processam-se os dados, desenvolve-se o modelo, implanta-se e monitora-se — com loops de feedback voltando aos dados."},
+  {q:"Em qual etapa do diagrama acontece a engenharia de features?",
+   opts:["Treinar, Ajustar, Avaliar","Implantar","Preparar Dados (dentro de Processar Dados)","Monitorar"],
+   a:2, ex:"“Criar features” é a segunda metade da caixa amarela Preparar Dados, depois do pré-processamento — antes de qualquer treino."},
+  {q:"Qual serviço detecta drift de dados em um modelo em produção?",
+   opts:["SageMaker Ground Truth","AWS Glue","SageMaker Model Monitor","Amazon Athena"],
+   a:2, ex:"O Model Monitor compara as estatísticas do tráfego de produção com a baseline capturada no treino e agenda análises periódicas."},
+  {q:"Para que serve a loja ONLINE da Feature Store (cilindro rosa)?",
+   opts:["Guardar o histórico completo de features para treino","Servir features com baixa latência para inferência em tempo real","Armazenar os modelos treinados","Agendar retreinos periódicos"],
+   a:1, ex:"A loja online serve o valor mais recente em milissegundos para endpoints em tempo real (seta rosa do diagrama); o histórico fica na loja offline."},
+  {q:"O que viaja pela seta verde “Busca artefatos” do diagrama?",
+   opts:["Features históricas para o treino","O modelo aprovado, do Model Registry para o Deploy","Alertas de drift para o Alarm Manager","Dados brutos para o data lake"],
+   a:1, ex:"A seta verde liga o Model Registry ao Deploy: só modelos registrados e aprovados chegam à produção."},
+  {q:"O loop de drift / active learning conecta quais pontos do diagrama?",
+   opts:["Deploy → Treinamento","Monitoramento/Alarm Manager → Preparar Dados","Avaliação → Deploy","Coleta → Enquadramento do problema"],
+   a:1, ex:"Quando o monitoramento detecta drift, o alarme viaja pela linha preta inferior de volta à preparação de dados — dados novos, retreino, ciclo reiniciado."},
+  {q:"Você tem 2 milhões de imagens sem rótulos e precisa de aprendizado supervisionado. Qual serviço resolve?",
+   opts:["SageMaker Ground Truth","Amazon EventBridge","SageMaker Debugger","Amazon SNS"],
+   a:0, ex:"O Ground Truth cria fluxos de rotulagem com força de trabalho humana e rotulagem automática assistida por ML."},
+  {q:"Seu modelo baseline está razoável e você quer a melhor combinação de hiperparâmetros sem busca manual. Qual serviço usar?",
+   opts:["SageMaker Batch Transform","Amazon QuickSight","SageMaker Automatic Model Tuning","AWS Lake Formation"],
+   a:2, ex:"O Automatic Model Tuning executa múltiplos treinos com otimização bayesiana — é o “Ajustar” da caixa roxa do diagrama."}
+];
+let quizAnswers={};
+(function buildQuiz(){
+  const el=document.getElementById("quizInner");
+  el.innerHTML = QUIZ.map((q,qi)=>`
+    <div class="quiz-q" data-q="${qi}">
+      <span class="qn">PERGUNTA ${qi+1} DE ${QUIZ.length}</span>
+      <p class="qt">${q.q}</p>
+      <div class="opts">${q.opts.map((o,oi)=>`<button class="opt" data-o="${oi}">${o}</button>`).join("")}</div>
+      <div class="explain">${q.ex}</div>
+    </div>`).join("") + `<div class="quiz-score" id="quizScore" hidden><div class="big" id="scoreNum"></div><p id="scoreMsg"></p></div>`;
+  el.querySelectorAll(".quiz-q").forEach(qEl=>{
+    const qi=+qEl.dataset.q;
+    qEl.querySelectorAll(".opt").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        if(qi in quizAnswers) return;
+        const oi=+btn.dataset.o;
+        quizAnswers[qi]=oi;
+        qEl.querySelectorAll(".opt").forEach(b=>{
+          b.disabled=true;
+          if(+b.dataset.o===QUIZ[qi].a) b.classList.add("correct");
+        });
+        if(oi!==QUIZ[qi].a) btn.classList.add("wrong");
+        qEl.querySelector(".explain").classList.add("show");
+        if(Object.keys(quizAnswers).length===QUIZ.length){
+          const score=QUIZ.reduce((s,q,idx)=>s+(quizAnswers[idx]===q.a?1:0),0);
+          const box=document.getElementById("quizScore");
+          box.hidden=false;
+          document.getElementById("scoreNum").textContent=`${score} / ${QUIZ.length}`;
+          document.getElementById("scoreMsg").textContent =
+            score===QUIZ.length?"Impecável — você domina o diagrama inteiro.":
+            score>=6?"Muito bom! Revise as etapas das perguntas erradas clicando nelas no diagrama.":
+            score>=4?"Bom começo — refaça o tour passo a passo e volte para a revanche.":
+            "Clique em “Começar a aula passo a passo” e percorra o ciclo na ordem — o quiz estará esperando.";
+        }
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
